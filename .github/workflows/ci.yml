@@ -31,3 +31,32 @@ jobs:
 
       - name: Testler (pytest)
         run: pytest -v
+
+  docker:
+    name: Docker imajı
+    needs: lint-ve-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu indir
+        uses: actions/checkout@v5
+
+      - name: İmajı oluştur
+        run: docker build -t ogrenci-harcama-takip .
+
+      - name: Konteyneri başlat
+        run: docker run -d --name uygulama -p 8000:8000 ogrenci-harcama-takip
+
+      - name: Uygulama yanıt veriyor mu? (smoke test)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/ -o sayfa.html; then break; fi
+            sleep 1
+          done
+          grep -q "Öğrenci Harcama Takip" sayfa.html
+          curl -fsS http://localhost:8000/abonelikler | grep -q "Aboneliklerim"
+          echo "Uygulama Docker içinde çalışıyor ✅"
+
+      - name: Konteyner logları
+        if: always()
+        run: docker logs uygulama

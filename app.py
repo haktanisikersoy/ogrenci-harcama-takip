@@ -7,6 +7,8 @@ from datetime import date, datetime
 
 from flask import Flask, g, redirect, render_template, request, url_for
 
+from abonelik import YAKLASAN_GUN, kalan_metni, sonraki_odeme
+
 KATEGORILER = ["Yemek", "Ulaşım", "Kira/Fatura", "Eğitim", "Eğlence", "Diğer"]
 
 
@@ -45,6 +47,14 @@ def create_app(test_config=None):
             )
             get_db().execute(
                 "CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)"
+            )
+            get_db().execute(
+                """CREATE TABLE IF NOT EXISTS abonelikler (
+                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       ad TEXT NOT NULL,
+                       tutar REAL NOT NULL,
+                       odeme_gunu INTEGER NOT NULL
+                   )"""
             )
             get_db().commit()
 
@@ -91,6 +101,31 @@ def create_app(test_config=None):
             "yuzde": min(round(harcanan / limit * 100, 1), 100),
         }
 
+    def bugunu_al():
+        # Testlerde sabit bir tarih verilebilsin diye BUGUN ayarı kullanılabilir
+        return app.config.get("BUGUN") or date.today()
+
+    def abonelikleri_getir():
+        """Abonelikleri bir sonraki ödeme tarihine göre (en yakın önce) döndürür."""
+        bugun = bugunu_al()
+        liste = []
+        for a in get_db().execute("SELECT * FROM abonelikler"):
+            tarih = sonraki_odeme(a["odeme_gunu"], bugun)
+            kalan = (tarih - bugun).days
+            liste.append(
+                {
+                    "id": a["id"],
+                    "ad": a["ad"],
+                    "tutar": a["tutar"],
+                    "odeme_gunu": a["odeme_gunu"],
+                    "sonraki_odeme": tarih.strftime("%d.%m.%Y"),
+                    "kalan_gun": kalan,
+                    "kalan_metni": kalan_metni(kalan),
+                    "yaklasan": kalan <= YAKLASAN_GUN,
+                }
+            )
+        return sorted(liste, key=lambda a: (a["kalan_gun"], a["ad"]))
+
     def ana_sayfa(hata=None, form=None, butce_hata=None, durum_kodu=200):
         return (
             render_template(
@@ -102,6 +137,7 @@ def create_app(test_config=None):
                 form=form or {},
                 butce=butce_durumu(date.today().strftime("%Y-%m")),
                 butce_hata=butce_hata,
+                yaklasan_abonelikler=[a for a in abonelikleri_getir() if a["yaklasan"]],
             ),
             durum_kodu,
         )
@@ -163,6 +199,60 @@ def create_app(test_config=None):
         if silinen == 0:
             return "Harcama bulunamadı.", 404
         return redirect(url_for("index"))
+
+    def abonelik_sayfasi(hata=None, form=None, durum_kodu=200):
+        abonelikler = abonelikleri_getir()
+        return (
+            render_template(
+                "abonelikler.html",
+                abonelikler=abonelikler,
+                aylik_toplam=round(sum(a["tutar"] for a in abonelikler), 2),
+                yaklasan_gun=YAKLASAN_GUN,
+                hata=hata,
+                form=form or {},
+            ),
+            durum_kodu,
+        )
+
+    @app.route("/abonelikler", methods=["GET"])
+    def abonelikler():
+        return abonelik_sayfasi()
+
+    @app.route("/abonelik", methods=["POST"])
+    def abonelik_ekle():
+        form = request.form
+        ad = form.get("ad", "").strip()
+        tutar, hata = tutar_coz(form.get("tutar", ""))
+
+        if not hata and not ad:
+            hata = "Abonelik adı boş olamaz."
+        if not hata:
+            try:
+                odeme_gunu = int(form.get("odeme_gunu", ""))
+                if not 1 <= odeme_gunu <= 31:
+                    raise ValueError
+            except ValueError:
+                hata = "Ödeme günü 1 ile 31 arasında bir sayı olmalıdır."
+
+        if hata:
+            return abonelik_sayfasi(hata=hata, form=form, durum_kodu=400)
+
+        db = get_db()
+        db.execute(
+            "INSERT INTO abonelikler (ad, tutar, odeme_gunu) VALUES (?, ?, ?)",
+            (ad, tutar, odeme_gunu),
+        )
+        db.commit()
+        return redirect(url_for("abonelikler"))
+
+    @app.route("/abonelik/<int:abonelik_id>/sil", methods=["POST"])
+    def abonelik_sil(abonelik_id):
+        db = get_db()
+        silinen = db.execute("DELETE FROM abonelikler WHERE id = ?", (abonelik_id,)).rowcount
+        db.commit()
+        if silinen == 0:
+            return "Abonelik bulunamadı.", 404
+        return redirect(url_for("abonelikler"))
 
     @app.route("/ozet", methods=["GET"])
     def ozet():

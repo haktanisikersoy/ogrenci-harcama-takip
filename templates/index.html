@@ -26,6 +26,8 @@
     .uyari { background: #fff4e5; color: #8a4b00; border: 1px solid #f5c27a; padding: .75rem; border-radius: 6px; margin-bottom: .75rem; font-weight: 600; }
     form.butce-form { grid-template-columns: 1fr auto; align-items: end; background: none; padding: 0; }
     form.butce-form button { grid-column: auto; }
+    .baglantilar { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+    .bilgi { background: #eef5fd; color: #1d4f86; border: 1px solid #b9d5f3; padding: .75rem; border-radius: 6px; margin-bottom: 1rem; }
     .sil-form { display: inline; background: none; padding: 0; }
     button.sil { background: none; color: #a11; border: 1px solid #e3b5b5; padding: .2rem .6rem; font-size: .85rem; }
     button.sil:hover { background: #fde8e8; }
@@ -34,7 +36,19 @@
 <body>
   <h1>Öğrenci Harcama Takip</h1>
   <p class="alt">Harcamalarını kaydet, paranın nereye gittiğini gör.</p>
-  <p><a href="{{ url_for('ozet') }}">📊 Aylık kategori özetini gör →</a></p>
+  <p class="baglantilar">
+    <a href="{{ url_for('ozet') }}">📊 Aylık kategori özetini gör →</a>
+    <a href="{{ url_for('abonelikler') }}">🔁 Aboneliklerim →</a>
+  </p>
+
+  {% if yaklasan_abonelikler %}
+    <div class="bilgi" role="status" id="yaklasan-odemeler">
+      <strong>🔔 Yaklaşan abonelik ödemeleri:</strong>
+      {% for a in yaklasan_abonelikler %}
+        {{ a.ad }} ({{ '%.2f' % a.tutar }} ₺, {{ a.kalan_metni | lower }}){{ ', ' if not loop.last }}
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <section class="butce">
     {% if butce %}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aboneliklerim - Öğrenci Harcama Takip</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { margin-bottom: .25rem; }
+    .alt { color: #666; margin-top: 0; }
+    form.ekle { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: .75rem; background: #f6f7f9; padding: 1rem; border-radius: 8px; align-items: end; }
+    label { display: flex; flex-direction: column; font-size: .9rem; gap: .25rem; }
+    input, button { padding: .5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; }
+    form.ekle button { grid-column: 1 / -1; background: #2f6f4f; color: #fff; border: none; cursor: pointer; }
+    .hata { background: #fde8e8; color: #a11; padding: .75rem; border-radius: 6px; margin-bottom: 1rem; }
+    .ozet-kutu { display: flex; gap: 1rem; margin: 1.5rem 0 .5rem; }
+    .ozet-kutu div { flex: 1; border: 1px solid #e3e6ea; border-radius: 8px; padding: .75rem 1rem; }
+    .ozet-kutu span { display: block; color: #666; font-size: .85rem; }
+    .ozet-kutu strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #eee; }
+    td.sayi, th.sayi { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.yaklasan td { background: #fffaf0; }
+    .rozet { display: inline-block; font-size: .8rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; background: #fff4e5; color: #8a4b00; border: 1px solid #f5c27a; }
+    .kalan { color: #666; }
+    .sil-form { display: inline; }
+    button.sil { background: none; color: #a11; border: 1px solid #e3b5b5; padding: .2rem .6rem; font-size: .85rem; cursor: pointer; }
+    button.sil:hover { background: #fde8e8; }
+    .bos { color: #888; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <p><a href="{{ url_for('index') }}">← Harcamalara dön</a></p>
+  <h1>Aboneliklerim</h1>
+  <p class="alt">Her ay düzenli ödediğin abonelikleri ekle, yaklaşan ödemeleri kaçırma.</p>
+
+  {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+
+  <form method="post" action="{{ url_for('abonelik_ekle') }}" class="ekle">
+    <label>Abonelik adı
+      <input type="text" name="ad" placeholder="örn. Spotify" value="{{ form.get('ad', '') }}">
+    </label>
+    <label>Aylık tutar (₺)
+      <input type="text" name="tutar" inputmode="decimal" placeholder="örn. 59,99" value="{{ form.get('tutar', '') }}">
+    </label>
+    <label>Ödeme günü
+      <input type="number" name="odeme_gunu" min="1" max="31" placeholder="1-31" value="{{ form.get('odeme_gunu', '') }}">
+    </label>
+    <button type="submit">Abonelik Ekle</button>
+  </form>
+
+  {% if abonelikler %}
+    <div class="ozet-kutu">
+      <div><span>Aylık abonelik toplamı</span><strong id="aylik-toplam">{{ '%.2f' % aylik_toplam }} ₺</strong></div>
+      <div><span>Abonelik sayısı</span><strong>{{ abonelikler | length }}</strong></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Abonelik</th><th class="sayi">Tutar</th><th>Ödeme günü</th><th>Sonraki ödeme</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for a in abonelikler %}
+          <tr class="{{ 'yaklasan' if a.yaklasan else '' }}">
+            <td>{{ a.ad }}</td>
+            <td class="sayi">{{ '%.2f' % a.tutar }} ₺</td>
+            <td>Her ayın {{ a.odeme_gunu }}. günü</td>
+            <td>
+              {{ a.sonraki_odeme }}
+              {% if a.yaklasan %}
+                <span class="rozet">🔔 {{ a.kalan_metni }}</span>
+              {% else %}
+                <span class="kalan">({{ a.kalan_metni }})</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{{ url_for('abonelik_sil', abonelik_id=a.id) }}" class="sil-form"
+                    onsubmit="return confirm('Bu aboneliği silmek istediğine emin misin?');">
+                <button type="submit" class="sil">Sil</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="alt" style="margin-top:.75rem; font-size:.85rem">🔔 işaretli satırlar: ödemesine {{ yaklasan_gun }} gün veya daha az kalan abonelikler.</p>
+  {% else %}
+    <p class="bos">Henüz abonelik eklenmedi.</p>
+  {% endif %}
+</body>
+</html>

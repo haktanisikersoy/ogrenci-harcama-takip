@@ -1,4 +1,5 @@
 """Öğrenci Harcama Takip - basit Flask uygulaması."""
+import math
 import os
 import sqlite3
 from datetime import date, datetime
@@ -41,6 +42,9 @@ def create_app(test_config=None):
                        tarih TEXT NOT NULL
                    )"""
             )
+            get_db().execute(
+                "CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)"
+            )
             get_db().commit()
 
     init_db()
@@ -50,32 +54,78 @@ def create_app(test_config=None):
             "SELECT * FROM harcamalar ORDER BY tarih DESC, id DESC"
         ).fetchall()
 
+    def tutar_coz(metin):
+        """Kullanıcının girdiği tutarı sayıya çevirir. (tutar, hata) döndürür."""
+        try:
+            tutar = float(metin.strip().replace(",", "."))
+        except ValueError:
+            return None, "Lütfen geçerli bir tutar girin."
+        if not math.isfinite(tutar) or tutar <= 0:
+            return None, "Tutar sıfırdan büyük olmalıdır."
+        return round(tutar, 2), None
+
+    def butce_limiti_getir():
+        satir = get_db().execute("SELECT deger FROM ayarlar WHERE anahtar = 'aylik_limit'").fetchone()
+        return float(satir["deger"]) if satir else None
+
+    def butce_durumu(ay):
+        """Seçilen ay için bütçe bilgisini döndürür; limit yoksa None."""
+        limit = butce_limiti_getir()
+        if limit is None:
+            return None
+        harcanan = get_db().execute(
+            "SELECT COALESCE(ROUND(SUM(tutar), 2), 0) AS toplam FROM harcamalar WHERE substr(tarih, 1, 7) = ?",
+            (ay,),
+        ).fetchone()["toplam"]
+        return {
+            "limit": limit,
+            "harcanan": harcanan,
+            "kalan": round(limit - harcanan, 2),
+            "asildi": harcanan > limit,
+            "yuzde": min(round(harcanan / limit * 100, 1), 100),
+        }
+
+    def ana_sayfa(hata=None, form=None, butce_hata=None, durum_kodu=200):
+        return (
+            render_template(
+                "index.html",
+                harcamalar=harcamalari_getir(),
+                kategoriler=KATEGORILER,
+                bugun=date.today().isoformat(),
+                hata=hata,
+                form=form or {},
+                butce=butce_durumu(date.today().strftime("%Y-%m")),
+                butce_hata=butce_hata,
+            ),
+            durum_kodu,
+        )
+
     @app.route("/", methods=["GET"])
     def index():
-        return render_template(
-            "index.html",
-            harcamalar=harcamalari_getir(),
-            kategoriler=KATEGORILER,
-            bugun=date.today().isoformat(),
-            hata=None,
-            form={},
+        return ana_sayfa()
+
+    @app.route("/butce", methods=["POST"])
+    def butce_kaydet():
+        limit, hata = tutar_coz(request.form.get("limit", ""))
+        if hata:
+            return ana_sayfa(butce_hata="Bütçe limiti: " + hata[0].lower() + hata[1:], durum_kodu=400)
+        db = get_db()
+        db.execute(
+            "INSERT INTO ayarlar (anahtar, deger) VALUES ('aylik_limit', ?) "
+            "ON CONFLICT(anahtar) DO UPDATE SET deger = excluded.deger",
+            (str(limit),),
         )
+        db.commit()
+        return redirect(url_for("index"))
 
     @app.route("/harcama", methods=["POST"])
     def harcama_ekle():
         form = request.form
-        tutar_str = form.get("tutar", "").strip().replace(",", ".")
         kategori = form.get("kategori", "")
         aciklama = form.get("aciklama", "").strip()
         tarih = form.get("tarih", "").strip() or date.today().isoformat()
 
-        hata = None
-        try:
-            tutar = float(tutar_str)
-            if tutar <= 0:
-                hata = "Tutar sıfırdan büyük olmalıdır."
-        except ValueError:
-            hata = "Lütfen geçerli bir tutar girin."
+        tutar, hata = tutar_coz(form.get("tutar", ""))
 
         if not hata and kategori not in KATEGORILER:
             hata = "Lütfen geçerli bir kategori seçin."
@@ -87,22 +137,12 @@ def create_app(test_config=None):
                 hata = "Lütfen geçerli bir tarih girin."
 
         if hata:
-            return (
-                render_template(
-                    "index.html",
-                    harcamalar=harcamalari_getir(),
-                    kategoriler=KATEGORILER,
-                    bugun=date.today().isoformat(),
-                    hata=hata,
-                    form=form,
-                ),
-                400,
-            )
+            return ana_sayfa(hata=hata, form=form, durum_kodu=400)
 
         db = get_db()
         db.execute(
             "INSERT INTO harcamalar (tutar, kategori, aciklama, tarih) VALUES (?, ?, ?, ?)",
-            (round(tutar, 2), kategori, aciklama, tarih),
+            (tutar, kategori, aciklama, tarih),
         )
         db.commit()
         return redirect(url_for("index"))
@@ -150,6 +190,7 @@ def create_app(test_config=None):
             aylar=sorted(aylar, reverse=True),
             kategoriler=kategoriler,
             genel_toplam=genel_toplam,
+            butce=butce_durumu(ay),
         )
 
     return app

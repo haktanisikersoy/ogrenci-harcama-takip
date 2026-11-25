@@ -17,6 +17,15 @@
     th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #eee; }
     td.tutar { text-align: right; font-variant-numeric: tabular-nums; }
     .bos { color: #888; margin-top: 1.5rem; }
+    .butce { border: 1px solid #e3e6ea; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .butce-satir { margin-bottom: .5rem; }
+    .kalan { color: #2f6f4f; }
+    .cubuk { background: #eee; height: .6rem; border-radius: 4px; overflow: hidden; margin-bottom: .75rem; }
+    .dolu { background: #2f6f4f; height: 100%; }
+    .dolu.asildi { background: #c0392b; }
+    .uyari { background: #fff4e5; color: #8a4b00; border: 1px solid #f5c27a; padding: .75rem; border-radius: 6px; margin-bottom: .75rem; font-weight: 600; }
+    form.butce-form { grid-template-columns: 1fr auto; align-items: end; background: none; padding: 0; }
+    form.butce-form button { grid-column: auto; }
     .sil-form { display: inline; background: none; padding: 0; }
     button.sil { background: none; color: #a11; border: 1px solid #e3b5b5; padding: .2rem .6rem; font-size: .85rem; }
     button.sil:hover { background: #fde8e8; }
@@ -26,6 +35,27 @@
   <h1>Öğrenci Harcama Takip</h1>
   <p class="alt">Harcamalarını kaydet, paranın nereye gittiğini gör.</p>
   <p><a href="{{ url_for('ozet') }}">📊 Aylık kategori özetini gör →</a></p>
+
+  <section class="butce">
+    {% if butce %}
+      <div class="butce-satir">
+        <strong>Bu ay:</strong> {{ '%.2f' % butce.harcanan }} ₺ / {{ '%.2f' % butce.limit }} ₺
+        {% if not butce.asildi %}<span class="kalan">({{ '%.2f' % butce.kalan }} ₺ kaldı)</span>{% endif %}
+      </div>
+      <div class="cubuk"><div class="dolu {% if butce.asildi %}asildi{% endif %}" style="width: {{ butce.yuzde }}%"></div></div>
+      {% if butce.asildi %}
+        <div class="uyari" role="alert" id="butce-uyari">⚠️ Aylık bütçe limitini {{ '%.2f' % (-butce.kalan) }} ₺ aştın!</div>
+      {% endif %}
+    {% endif %}
+    {% if butce_hata %}<div class="hata" role="alert">{{ butce_hata }}</div>{% endif %}
+    <form method="post" action="{{ url_for('butce_kaydet') }}" class="butce-form">
+      <label>Aylık bütçe limiti (₺)
+        <input type="text" name="limit" inputmode="decimal" placeholder="örn. 5000"
+               value="{{ '%.2f' % butce.limit if butce else '' }}">
+      </label>
+      <button type="submit">Limiti Kaydet</button>
+    </form>
+  </section>
 
   {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
 

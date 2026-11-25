@@ -17,6 +17,7 @@
     .bar { background: #cfe5d8; height: .6rem; border-radius: 4px; }
     tfoot td { font-weight: bold; border-top: 2px solid #222; }
     .bos { color: #888; margin-top: 1.5rem; }
+    .uyari { background: #fff4e5; color: #8a4b00; border: 1px solid #f5c27a; padding: .75rem; border-radius: 6px; margin-top: 1rem; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -34,6 +35,10 @@
     </select>
     <button type="submit">Göster</button>
   </form>
+
+  {% if butce and butce.asildi %}
+    <div class="uyari" role="alert" id="butce-uyari">⚠️ {{ ay }} ayında bütçe limiti ({{ '%.2f' % butce.limit }} ₺) {{ '%.2f' % (-butce.kalan) }} ₺ aşıldı.</div>
+  {% endif %}
 
   {% if kategoriler %}
     <table>

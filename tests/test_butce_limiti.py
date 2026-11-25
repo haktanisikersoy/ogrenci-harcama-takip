@@ -1,4 +1,5 @@
 """Görev #4 - Aylık bütçe limiti uyarısı testleri."""
+
 from datetime import date
 
 import pytest
@@ -20,7 +21,9 @@ def harcama_ekle(client, tutar, tarih=BUGUN):
 
 
 def test_limit_kaydedilir(client):
-    sayfa = client.post("/butce", data={"limit": "1500"}, follow_redirects=True).get_data(as_text=True)
+    sayfa = client.post("/butce", data={"limit": "1500"}, follow_redirects=True).get_data(
+        as_text=True
+    )
     assert 'value="1500.00"' in sayfa
     assert "/ 1500.00 ₺" in sayfa
 

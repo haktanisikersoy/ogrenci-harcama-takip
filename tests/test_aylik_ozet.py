@@ -1,4 +1,5 @@
 """Görev #2 - Aylık kategori özeti testleri."""
+
 import re
 
 import pytest
@@ -24,7 +25,8 @@ def client(tmp_path):
 def satir_toplami(sayfa, kategori):
     """Tablodaki ilgili kategori satırının toplam tutarını döndürür."""
     eslesme = re.search(
-        rf"<td>{kategori}</td>\s*<td class=\"sayi\">\d+</td>\s*<td class=\"sayi\">([\d.]+) ₺</td>", sayfa
+        rf"<td>{kategori}</td>\s*<td class=\"sayi\">\d+</td>\s*<td class=\"sayi\">([\d.]+) ₺</td>",
+        sayfa,
     )
     return eslesme.group(1) if eslesme else None
 

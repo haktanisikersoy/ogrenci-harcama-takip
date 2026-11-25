@@ -1,4 +1,5 @@
 """Öğrenci Harcama Takip - basit Flask uygulaması."""
+
 import math
 import os
 import sqlite3
@@ -50,9 +51,7 @@ def create_app(test_config=None):
     init_db()
 
     def harcamalari_getir():
-        return get_db().execute(
-            "SELECT * FROM harcamalar ORDER BY tarih DESC, id DESC"
-        ).fetchall()
+        return get_db().execute("SELECT * FROM harcamalar ORDER BY tarih DESC, id DESC").fetchall()
 
     def tutar_coz(metin):
         """Kullanıcının girdiği tutarı sayıya çevirir. (tutar, hata) döndürür."""
@@ -65,7 +64,9 @@ def create_app(test_config=None):
         return round(tutar, 2), None
 
     def butce_limiti_getir():
-        satir = get_db().execute("SELECT deger FROM ayarlar WHERE anahtar = 'aylik_limit'").fetchone()
+        satir = (
+            get_db().execute("SELECT deger FROM ayarlar WHERE anahtar = 'aylik_limit'").fetchone()
+        )
         return float(satir["deger"]) if satir else None
 
     def butce_durumu(ay):
@@ -73,10 +74,15 @@ def create_app(test_config=None):
         limit = butce_limiti_getir()
         if limit is None:
             return None
-        harcanan = get_db().execute(
-            "SELECT COALESCE(ROUND(SUM(tutar), 2), 0) AS toplam FROM harcamalar WHERE substr(tarih, 1, 7) = ?",
-            (ay,),
-        ).fetchone()["toplam"]
+        harcanan = (
+            get_db()
+            .execute(
+                "SELECT COALESCE(ROUND(SUM(tutar), 2), 0) AS toplam "
+                "FROM harcamalar WHERE substr(tarih, 1, 7) = ?",
+                (ay,),
+            )
+            .fetchone()["toplam"]
+        )
         return {
             "limit": limit,
             "harcanan": harcanan,
@@ -108,7 +114,9 @@ def create_app(test_config=None):
     def butce_kaydet():
         limit, hata = tutar_coz(request.form.get("limit", ""))
         if hata:
-            return ana_sayfa(butce_hata="Bütçe limiti: " + hata[0].lower() + hata[1:], durum_kodu=400)
+            return ana_sayfa(
+                butce_hata="Bütçe limiti: " + hata[0].lower() + hata[1:], durum_kodu=400
+            )
         db = get_db()
         db.execute(
             "INSERT INTO ayarlar (anahtar, deger) VALUES ('aylik_limit', ?) "
@@ -166,11 +174,19 @@ def create_app(test_config=None):
         try:
             datetime.strptime(ay, "%Y-%m")
         except ValueError:
-            return render_template("ozet.html", hata="Geçersiz ay biçimi. Örnek: 2026-11",
-                                   ay=ay, aylar=[bu_ay], kategoriler=[], genel_toplam=0), 400
+            return render_template(
+                "ozet.html",
+                hata="Geçersiz ay biçimi. Örnek: 2026-11",
+                ay=ay,
+                aylar=[bu_ay],
+                kategoriler=[],
+                genel_toplam=0,
+            ), 400
 
         # Seçim listesi: kaydı olan aylar + içinde bulunulan ay
-        aylar = {r["ay"] for r in db.execute("SELECT DISTINCT substr(tarih, 1, 7) AS ay FROM harcamalar")}
+        aylar = {
+            r["ay"] for r in db.execute("SELECT DISTINCT substr(tarih, 1, 7) AS ay FROM harcamalar")
+        }
         aylar.update({bu_ay, ay})
 
         kategoriler = db.execute(

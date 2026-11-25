@@ -1,4 +1,5 @@
 """Görev #1 - Harcama ekleme testleri."""
+
 import pytest
 
 from app import create_app
@@ -13,7 +14,12 @@ def client(tmp_path):
 def test_harcama_eklenince_listede_gorunur(client):
     yanit = client.post(
         "/harcama",
-        data={"tutar": "120,50", "kategori": "Yemek", "aciklama": "Yemekhane", "tarih": "2026-11-20"},
+        data={
+            "tutar": "120,50",
+            "kategori": "Yemek",
+            "aciklama": "Yemekhane",
+            "tarih": "2026-11-20",
+        },
         follow_redirects=True,
     )
     assert yanit.status_code == 200
@@ -26,7 +32,12 @@ def test_harcama_eklenince_listede_gorunur(client):
 def test_gecersiz_tutar_reddedilir(client, tutar):
     yanit = client.post(
         "/harcama",
-        data={"tutar": tutar, "kategori": "Yemek", "aciklama": "Gecersiz kayit", "tarih": "2026-11-20"},
+        data={
+            "tutar": tutar,
+            "kategori": "Yemek",
+            "aciklama": "Gecersiz kayit",
+            "tarih": "2026-11-20",
+        },
     )
     assert yanit.status_code == 400
     sayfa = yanit.get_data(as_text=True)

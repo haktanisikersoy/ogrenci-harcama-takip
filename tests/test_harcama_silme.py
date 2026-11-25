@@ -1,4 +1,5 @@
 """Görev #3 - Harcama silme testleri."""
+
 import pytest
 
 from app import create_app
@@ -8,8 +9,24 @@ from app import create_app
 def client(tmp_path):
     app = create_app({"TESTING": True, "DATABASE": str(tmp_path / "test.db")})
     c = app.test_client()
-    c.post("/harcama", data={"tutar": "80", "kategori": "Yemek", "aciklama": "Silinecek kayit", "tarih": "2026-11-10"})
-    c.post("/harcama", data={"tutar": "20", "kategori": "Ulaşım", "aciklama": "Kalacak kayit", "tarih": "2026-11-11"})
+    c.post(
+        "/harcama",
+        data={
+            "tutar": "80",
+            "kategori": "Yemek",
+            "aciklama": "Silinecek kayit",
+            "tarih": "2026-11-10",
+        },
+    )
+    c.post(
+        "/harcama",
+        data={
+            "tutar": "20",
+            "kategori": "Ulaşım",
+            "aciklama": "Kalacak kayit",
+            "tarih": "2026-11-11",
+        },
+    )
     return c
 
 

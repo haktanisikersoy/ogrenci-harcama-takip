@@ -1,7 +1,7 @@
 """Öğrenci Harcama Takip - basit Flask uygulaması."""
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 
 from flask import Flask, g, redirect, render_template, request, url_for
 
@@ -106,6 +106,42 @@ def create_app(test_config=None):
         )
         db.commit()
         return redirect(url_for("index"))
+
+    @app.route("/ozet", methods=["GET"])
+    def ozet():
+        db = get_db()
+        bu_ay = date.today().strftime("%Y-%m")
+        ay = request.args.get("ay", "").strip() or bu_ay
+
+        # Ay "YYYY-AA" biçiminde olmalı
+        try:
+            datetime.strptime(ay, "%Y-%m")
+        except ValueError:
+            return render_template("ozet.html", hata="Geçersiz ay biçimi. Örnek: 2026-11",
+                                   ay=ay, aylar=[bu_ay], kategoriler=[], genel_toplam=0), 400
+
+        # Seçim listesi: kaydı olan aylar + içinde bulunulan ay
+        aylar = {r["ay"] for r in db.execute("SELECT DISTINCT substr(tarih, 1, 7) AS ay FROM harcamalar")}
+        aylar.update({bu_ay, ay})
+
+        kategoriler = db.execute(
+            """SELECT kategori, ROUND(SUM(tutar), 2) AS toplam, COUNT(*) AS adet
+               FROM harcamalar
+               WHERE substr(tarih, 1, 7) = ?
+               GROUP BY kategori
+               ORDER BY toplam DESC""",
+            (ay,),
+        ).fetchall()
+        genel_toplam = round(sum(k["toplam"] for k in kategoriler), 2)
+
+        return render_template(
+            "ozet.html",
+            hata=None,
+            ay=ay,
+            aylar=sorted(aylar, reverse=True),
+            kategoriler=kategoriler,
+            genel_toplam=genel_toplam,
+        )
 
     return app
 

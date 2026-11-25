@@ -107,6 +107,15 @@ def create_app(test_config=None):
         db.commit()
         return redirect(url_for("index"))
 
+    @app.route("/harcama/<int:harcama_id>/sil", methods=["POST"])
+    def harcama_sil(harcama_id):
+        db = get_db()
+        silinen = db.execute("DELETE FROM harcamalar WHERE id = ?", (harcama_id,)).rowcount
+        db.commit()
+        if silinen == 0:
+            return "Harcama bulunamadı.", 404
+        return redirect(url_for("index"))
+
     @app.route("/ozet", methods=["GET"])
     def ozet():
         db = get_db()
